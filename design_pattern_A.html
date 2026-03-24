@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalesMgr - Pattern A: モダンフラット（ダークブルー系）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: '游ゴシック', 'Yu Gothic', 'YuGothic', sans-serif; background: #F0F2F5; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* Header */
+  .header { background: #1B2A4A; color: white; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 100; flex-shrink: 0; }
+  .header-logo { font-size: 20px; font-weight: 700; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+  .header-logo span { color: #2196F3; }
+  .header-info { display: flex; align-items: center; gap: 20px; font-size: 13px; color: #a0b0c8; }
+  .header-info .badge { background: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
+  .header-user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .avatar { width: 32px; height: 32px; background: #2196F3; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+
+  /* Layout */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: #2C3A52; color: #c8d6e5; padding: 16px 0; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-section { padding: 8px 0; }
+  .sidebar-label { font-size: 10px; color: #5a7090; padding: 4px 20px 8px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13px; transition: all 0.2s; border-left: 3px solid transparent; }
+  .sidebar-item:hover { background: rgba(33,150,243,0.12); color: white; }
+  .sidebar-item.active { background: rgba(33,150,243,0.2); color: #2196F3; border-left-color: #2196F3; font-weight: 600; }
+  .sidebar-icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid #3a4a5e; font-size: 11px; color: #5a7090; }
+  .sidebar-footer .stat { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .sidebar-footer .stat-val { color: #2196F3; font-weight: 600; }
+
+  /* Main */
+  .main { flex: 1; overflow-y: auto; padding: 0; }
+
+  /* Tab Bar */
+  .tab-bar { background: white; padding: 0 24px; display: flex; gap: 0; border-bottom: 2px solid #e8ecf0; position: sticky; top: 0; z-index: 50; }
+  .tab { padding: 14px 20px; cursor: pointer; font-size: 13px; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-weight: 500; }
+  .tab:hover { color: #2196F3; }
+  .tab.active { color: #2196F3; border-bottom-color: #2196F3; font-weight: 700; }
+
+  /* Content Panels */
+  .panel { display: none; padding: 24px; }
+  .panel.active { display: block; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: white; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-top: 3px solid; transition: transform 0.2s, box-shadow 0.2s; }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .kpi-card:nth-child(1) { border-top-color: #2196F3; }
+  .kpi-card:nth-child(2) { border-top-color: #4CAF50; }
+  .kpi-card:nth-child(3) { border-top-color: #FF9800; }
+  .kpi-card:nth-child(4) { border-top-color: #9C27B0; }
+  .kpi-card:nth-child(5) { border-top-color: #F44336; }
+  .kpi-label { font-size: 11px; color: #888; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: #1B2A4A; line-height: 1; }
+  .kpi-unit { font-size: 12px; color: #888; margin-top: 2px; }
+  .kpi-change { font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .kpi-change.up { color: #4CAF50; }
+  .kpi-change.down { color: #F44336; }
+
+  /* Charts */
+  .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .chart-title { font-size: 13px; font-weight: 700; color: #1B2A4A; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .chart-title .period { font-size: 11px; color: #888; font-weight: 400; }
+  .line-chart { position: relative; height: 180px; }
+  svg.chart { width: 100%; height: 100%; }
+  .chart-legend { display: flex; gap: 16px; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Pie / Donut */
+  .donut-wrap { display: flex; align-items: center; justify-content: center; flex-direction: column; height: 180px; }
+  .donut-labels { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .donut-label-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .donut-color { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Bottom Row */
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .table-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; font-size: 11px; color: #888; border-bottom: 2px solid #eee; font-weight: 600; letter-spacing: 0.5px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; }
+  tr:last-child td { border-bottom: none; }
+  .rank { font-weight: 700; color: #1B2A4A; }
+  .rank-1 { color: #FFD700; }
+  .rank-2 { color: #C0C0C0; }
+  .rank-3 { color: #CD7F32; }
+  .prog { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
+  .prog-bar { height: 100%; background: #2196F3; border-radius: 2px; }
+
+  /* Form Panel */
+  .form-header { background: white; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; }
+  .form-title { font-size: 16px; font-weight: 700; color: #1B2A4A; }
+  .form-date { font-size: 13px; color: #666; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .form-card-title { font-size: 13px; font-weight: 700; color: #1B2A4A; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #2196F3; display: flex; align-items: center; gap: 8px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; }
+  .form-input { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 14px; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+  .form-input:focus { border-color: #2196F3; box-shadow: 0 0 0 3px rgba(33,150,243,0.12); }
+  .form-input-group { display: flex; gap: 8px; }
+  .form-input-group .form-input { flex: 1; }
+  .input-addon { padding: 10px 14px; background: #f0f4f8; border: 1.5px solid #e0e0e0; border-left: none; border-radius: 0 6px 6px 0; font-size: 13px; color: #666; display: flex; align-items: center; }
+  .form-input.with-addon { border-radius: 6px 0 0 6px; }
+  .btn { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 600; transition: all 0.2s; }
+  .btn-primary { background: #2196F3; color: white; }
+  .btn-primary:hover { background: #1976D2; box-shadow: 0 4px 12px rgba(33,150,243,0.3); }
+  .btn-secondary { background: white; color: #666; border: 1.5px solid #ddd; }
+  .btn-secondary:hover { border-color: #2196F3; color: #2196F3; }
+  .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .member-select { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 14px; font-family: inherit; background: white; outline: none; cursor: pointer; }
+  .member-select:focus { border-color: #2196F3; }
+
+  /* Report Panel */
+  .report-filters { background: white; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 16px; }
+  .filter-group { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .filter-label { color: #666; font-size: 12px; }
+  .filter-select { padding: 7px 12px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: #2196F3; }
+  .report-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .summary-card { background: white; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+  .summary-label { font-size: 11px; color: #888; }
+  .summary-value { font-size: 22px; font-weight: 700; color: #1B2A4A; }
+  .report-table-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .report-table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .report-table-title { font-size: 13px; font-weight: 700; color: #1B2A4A; }
+  .export-btn { padding: 6px 16px; background: #f0f4f8; border: 1.5px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .report-table th { background: #f8fafc; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .achieve { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .achieve.high { background: #e8f5e9; color: #2e7d32; }
+  .achieve.mid { background: #fff3e0; color: #e65100; }
+  .achieve.low { background: #fce4ec; color: #c62828; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">
+    <span>Sales</span>Mgr
+    <div style="font-size:11px;color:#5a7090;font-weight:400;margin-left:8px;">営業管理システム</div>
+  </div>
+  <div class="header-info">
+    <span>2026年3月</span>
+    <span class="badge">11名</span>
+    <span>5,573件</span>
+    <div class="header-user">
+      <div class="avatar">管</div>
+      <span>管理者</span>
+    </div>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">メインメニュー</div>
+      <div class="sidebar-item active" onclick="switchSideTab(this, 'dashboard-tab')">
+        <span class="sidebar-icon">📊</span>ダッシュボード
+      </div>
+      <div class="sidebar-item" onclick="switchSideTab(this, 'input-tab')">
+        <span class="sidebar-icon">✏️</span>日次入力
+      </div>
+      <div class="sidebar-item" onclick="switchSideTab(this, 'report-tab')">
+        <span class="sidebar-icon">📋</span>レポート
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">管理</div>
+      <div class="sidebar-item"><span class="sidebar-icon">🎯</span>目標設定</div>
+      <div class="sidebar-item"><span class="sidebar-icon">👥</span>メンバー管理</div>
+      <div class="sidebar-item"><span class="sidebar-icon">🏆</span>ランキング</div>
+      <div class="sidebar-item"><span class="sidebar-icon">🤝</span>紹介管理</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="stat"><span>総レコード</span><span class="stat-val">5,573</span></div>
+      <div class="stat"><span>総紹介数</span><span class="stat-val">4,837</span></div>
+      <div class="stat"><span>メンバー</span><span class="stat-val">11名</span></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active" id="tab-dashboard" onclick="switchTab('dashboard')">📊 ダッシュボード</div>
+      <div class="tab" id="tab-input" onclick="switchTab('input')">✏️ 日次入力フォーム</div>
+      <div class="tab" id="tab-report" onclick="switchTab('report')">📋 レポート</div>
+    </div>
+
+    <!-- Dashboard Panel -->
+    <div class="panel active" id="panel-dashboard">
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">架電数（今月）</div>
+          <div class="kpi-value">1,248</div>
+          <div class="kpi-unit">件</div>
+          <div class="kpi-change up">▲ 12.3% 前月比</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">アポ数（今月）</div>
+          <div class="kpi-value">87</div>
+          <div class="kpi-unit">件</div>
+          <div class="kpi-change up">▲ 8.6% 前月比</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">紹介数（今月）</div>
+          <div class="kpi-value">342</div>
+          <div class="kpi-unit">件</div>
+          <div class="kpi-change down">▼ 3.2% 前月比</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">受電数（今月）</div>
+          <div class="kpi-value">203</div>
+          <div class="kpi-unit">件</div>
+          <div class="kpi-change up">▲ 5.1% 前月比</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">生産性指数</div>
+          <div class="kpi-value">78.4</div>
+          <div class="kpi-unit">%</div>
+          <div class="kpi-change up">▲ 2.1pt 前月比</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">月次推移（架電・アポ・紹介）<span class="period">2025年10月 〜 2026年3月</span></div>
+          <div class="line-chart">
+            <svg class="chart" viewBox="0 0 600 180" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#2196F3" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#2196F3" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4CAF50" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#4CAF50" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <!-- Grid -->
+              <line x1="40" y1="10" x2="40" y2="160" stroke="#eee" stroke-width="1"/>
+              <line x1="40" y1="10" x2="590" y2="10" stroke="#eee" stroke-width="1"/>
+              <line x1="40" y1="47" x2="590" y2="47" stroke="#eee" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="40" y1="84" x2="590" y2="84" stroke="#eee" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="40" y1="122" x2="590" y2="122" stroke="#eee" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="40" y1="160" x2="590" y2="160" stroke="#eee" stroke-width="1"/>
+              <!-- Y labels -->
+              <text x="35" y="13" text-anchor="end" font-size="9" fill="#aaa">1500</text>
+              <text x="35" y="50" text-anchor="end" font-size="9" fill="#aaa">1000</text>
+              <text x="35" y="87" text-anchor="end" font-size="9" fill="#aaa">500</text>
+              <text x="35" y="163" text-anchor="end" font-size="9" fill="#aaa">0</text>
+              <!-- X labels -->
+              <text x="80" y="173" text-anchor="middle" font-size="9" fill="#aaa">10月</text>
+              <text x="173" y="173" text-anchor="middle" font-size="9" fill="#aaa">11月</text>
+              <text x="266" y="173" text-anchor="middle" font-size="9" fill="#aaa">12月</text>
+              <text x="359" y="173" text-anchor="middle" font-size="9" fill="#aaa">1月</text>
+              <text x="452" y="173" text-anchor="middle" font-size="9" fill="#aaa">2月</text>
+              <text x="545" y="173" text-anchor="middle" font-size="9" fill="#aaa">3月</text>
+              <!-- 架電 line + fill -->
+              <path d="M80,110 L173,95 L266,80 L359,88 L452,72 L545,58 L545,160 L80,160 Z" fill="url(#gradBlue)"/>
+              <polyline points="80,110 173,95 266,80 359,88 452,72 545,58" fill="none" stroke="#2196F3" stroke-width="2.5" stroke-linejoin="round"/>
+              <circle cx="80" cy="110" r="4" fill="#2196F3"/>
+              <circle cx="173" cy="95" r="4" fill="#2196F3"/>
+              <circle cx="266" cy="80" r="4" fill="#2196F3"/>
+              <circle cx="359" cy="88" r="4" fill="#2196F3"/>
+              <circle cx="452" cy="72" r="4" fill="#2196F3"/>
+              <circle cx="545" cy="58" r="4" fill="white" stroke="#2196F3" stroke-width="2.5"/>
+              <!-- アポ line -->
+              <polyline points="80,145 173,138 266,130 359,133 452,125 545,118" fill="none" stroke="#4CAF50" stroke-width="2" stroke-linejoin="round" stroke-dasharray="0"/>
+              <circle cx="80" cy="145" r="3" fill="#4CAF50"/>
+              <circle cx="173" cy="138" r="3" fill="#4CAF50"/>
+              <circle cx="266" cy="130" r="3" fill="#4CAF50"/>
+              <circle cx="359" cy="133" r="3" fill="#4CAF50"/>
+              <circle cx="452" cy="125" r="3" fill="#4CAF50"/>
+              <circle cx="545" cy="118" r="3" fill="white" stroke="#4CAF50" stroke-width="2"/>
+              <!-- 紹介 line -->
+              <polyline points="80,98 173,92 266,88 359,94 452,85 545,78" fill="none" stroke="#FF9800" stroke-width="2" stroke-linejoin="round"/>
+              <circle cx="80" cy="98" r="3" fill="#FF9800"/>
+              <circle cx="173" cy="92" r="3" fill="#FF9800"/>
+              <circle cx="266" cy="88" r="3" fill="#FF9800"/>
+              <circle cx="359" cy="94" r="3" fill="#FF9800"/>
+              <circle cx="452" cy="85" r="3" fill="#FF9800"/>
+              <circle cx="545" cy="78" r="3" fill="white" stroke="#FF9800" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div>架電数</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div>アポ数</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div>紹介数</div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">KPI達成率（今月）</div>
+          <div class="donut-wrap">
+            <svg viewBox="0 0 120 120" width="120" height="120">
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#eee" stroke-width="16"/>
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#2196F3" stroke-width="16" stroke-dasharray="188 113" stroke-dashoffset="75" transform="rotate(-90 60 60)"/>
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#4CAF50" stroke-width="16" stroke-dasharray="113 188" stroke-dashoffset="-113" transform="rotate(-90 60 60)"/>
+              <text x="60" y="58" text-anchor="middle" font-size="18" font-weight="700" fill="#1B2A4A">78%</text>
+              <text x="60" y="72" text-anchor="middle" font-size="9" fill="#888">総合達成率</text>
+            </svg>
+          </div>
+          <div class="donut-labels">
+            <div class="donut-label-item"><div class="donut-color" style="background:#2196F3"></div><span style="font-size:11px">架電 92%</span></div>
+            <div class="donut-label-item"><div class="donut-color" style="background:#4CAF50"></div><span style="font-size:11px">アポ 78%</span></div>
+            <div class="donut-label-item"><div class="donut-color" style="background:#FF9800"></div><span style="font-size:11px">紹介 65%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="bottom-row">
+        <div class="table-card">
+          <div class="chart-title">メンバー別今月実績</div>
+          <table>
+            <thead>
+              <tr><th>順位</th><th>メンバー</th><th>架電</th><th>アポ</th><th>紹介</th><th>達成率</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="rank rank-1">1</span></td><td>田中 一郎</td><td>142</td><td>12</td><td>38</td><td><span class="achieve high">98%</span></td></tr>
+              <tr><td><span class="rank rank-2">2</span></td><td>佐藤 花子</td><td>128</td><td>10</td><td>31</td><td><span class="achieve high">92%</span></td></tr>
+              <tr><td><span class="rank rank-3">3</span></td><td>鈴木 次郎</td><td>119</td><td>9</td><td>28</td><td><span class="achieve high">85%</span></td></tr>
+              <tr><td><span class="rank">4</span></td><td>山田 三郎</td><td>105</td><td>8</td><td>24</td><td><span class="achieve mid">76%</span></td></tr>
+              <tr><td><span class="rank">5</span></td><td>伊藤 四郎</td><td>98</td><td>7</td><td>21</td><td><span class="achieve mid">70%</span></td></tr>
+              <tr><td><span class="rank">6</span></td><td>渡辺 五子</td><td>87</td><td>6</td><td>18</td><td><span class="achieve low">62%</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">最近の活動</div>
+          <div style="font-size:12px;">
+            <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:32px;height:32px;background:#e3f2fd;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">📞</div>
+              <div><div style="font-weight:600;color:#1B2A4A;">田中 一郎</div><div style="color:#888;">架電 8件 / アポ 2件 登録</div><div style="color:#bbb;font-size:10px;">14:32</div></div>
+            </div>
+            <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:32px;height:32px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">🤝</div>
+              <div><div style="font-weight:600;color:#1B2A4A;">佐藤 花子</div><div style="color:#888;">紹介 3件 登録</div><div style="color:#bbb;font-size:10px;">13:15</div></div>
+            </div>
+            <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:32px;height:32px;background:#fff3e0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">🎯</div>
+              <div><div style="font-weight:600;color:#1B2A4A;">鈴木 次郎</div><div style="color:#888;">目標達成 月次アポ数</div><div style="color:#bbb;font-size:10px;">12:00</div></div>
+            </div>
+            <div style="padding:10px 0;display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:32px;height:32px;background:#f3e5f5;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">📋</div>
+              <div><div style="font-weight:600;color:#1B2A4A;">山田 三郎</div><div style="color:#888;">日次レポート 提出</div><div style="color:#bbb;font-size:10px;">10:45</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Panel -->
+    <div class="panel" id="panel-input">
+      <div class="form-header">
+        <div>
+          <div class="form-title">日次入力フォーム</div>
+          <div class="form-date">2026年3月23日（月）</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <select class="member-select" style="width:160px;">
+            <option>田中 一郎</option>
+            <option>佐藤 花子</option>
+            <option>鈴木 次郎</option>
+            <option>山田 三郎</option>
+          </select>
+          <button class="btn btn-secondary">◀ 前日</button>
+          <button class="btn btn-secondary">翌日 ▶</button>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-card">
+          <div class="form-card-title">📞 架電・アポ実績</div>
+          <div class="form-row">
+            <div class="form-label">架電数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="12">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">アポ取得数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="2">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">受電数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="5">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">アポ実施数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="1">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-card">
+          <div class="form-card-title">🤝 紹介実績</div>
+          <div class="form-row">
+            <div class="form-label">紹介獲得数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="3">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">紹介アポ数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="1">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">紹介成約数</div>
+            <div class="form-input-group">
+              <input type="number" class="form-input with-addon" placeholder="0" value="0">
+              <div class="input-addon">件</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">紹介元顧客名</div>
+            <input type="text" class="form-input" placeholder="顧客名を入力">
+          </div>
+        </div>
+        <div class="form-card" style="grid-column:1/-1;">
+          <div class="form-card-title">📝 備考・コメント</div>
+          <div class="form-row">
+            <div class="form-label">今日の振り返り</div>
+            <textarea class="form-input" rows="3" placeholder="今日の活動について記入してください..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-label">明日の目標・予定</div>
+            <textarea class="form-input" rows="2" placeholder="明日の目標を記入してください..."></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary">クリア</button>
+            <button class="btn btn-primary">保存する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report Panel -->
+    <div class="panel" id="panel-report">
+      <div class="report-filters">
+        <div class="filter-group">
+          <span class="filter-label">期間：</span>
+          <select class="filter-select"><option>2026年3月</option><option>2026年2月</option><option>2026年1月</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">メンバー：</span>
+          <select class="filter-select"><option>全員</option><option>田中 一郎</option><option>佐藤 花子</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">表示：</span>
+          <select class="filter-select"><option>月次集計</option><option>日次詳細</option></select>
+        </div>
+        <button class="btn btn-primary" style="margin-left:auto;padding:8px 20px;font-size:13px;">検索</button>
+      </div>
+
+      <div class="report-summary">
+        <div class="summary-card"><div class="summary-label">総架電数</div><div class="summary-value">1,248</div></div>
+        <div class="summary-card"><div class="summary-label">総アポ数</div><div class="summary-value">87</div></div>
+        <div class="summary-card"><div class="summary-label">総紹介数</div><div class="summary-value">342</div></div>
+        <div class="summary-card"><div class="summary-label">総受電数</div><div class="summary-value">203</div></div>
+      </div>
+
+      <div class="report-table-card">
+        <div class="report-table-header">
+          <div class="report-table-title">月次実績一覧（2026年3月）</div>
+          <button class="export-btn">CSV出力</button>
+        </div>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>メンバー</th>
+              <th class="text-right">架電数</th>
+              <th class="text-right">目標</th>
+              <th class="text-right">達成率</th>
+              <th class="text-right">アポ数</th>
+              <th class="text-right">紹介数</th>
+              <th class="text-right">受電数</th>
+              <th class="text-center">評価</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>田中 一郎</td><td class="text-right">142</td><td class="text-right">150</td><td class="text-right">94.7%</td><td class="text-right">12</td><td class="text-right">38</td><td class="text-right">22</td><td class="text-center"><span class="achieve high">優秀</span></td></tr>
+            <tr><td>佐藤 花子</td><td class="text-right">128</td><td class="text-right">140</td><td class="text-right">91.4%</td><td class="text-right">10</td><td class="text-right">31</td><td class="text-right">18</td><td class="text-center"><span class="achieve high">優秀</span></td></tr>
+            <tr><td>鈴木 次郎</td><td class="text-right">119</td><td class="text-right">140</td><td class="text-right">85.0%</td><td class="text-right">9</td><td class="text-right">28</td><td class="text-right">16</td><td class="text-center"><span class="achieve high">良好</span></td></tr>
+            <tr><td>山田 三郎</td><td class="text-right">105</td><td class="text-right">140</td><td class="text-right">75.0%</td><td class="text-right">8</td><td class="text-right">24</td><td class="text-right">14</td><td class="text-center"><span class="achieve mid">普通</span></td></tr>
+            <tr><td>伊藤 四郎</td><td class="text-right">98</td><td class="text-right">140</td><td class="text-right">70.0%</td><td class="text-right">7</td><td class="text-right">21</td><td class="text-right">12</td><td class="text-center"><span class="achieve mid">普通</span></td></tr>
+            <tr><td>渡辺 五子</td><td class="text-right">87</td><td class="text-right">140</td><td class="text-right">62.1%</td><td class="text-right">6</td><td class="text-right">18</td><td class="text-right">10</td><td class="text-center"><span class="achieve low">要改善</span></td></tr>
+            <tr style="font-weight:700;background:#f8fafc;"><td>合計</td><td class="text-right">1,248</td><td class="text-right">1,400</td><td class="text-right">89.1%</td><td class="text-right">87</td><td class="text-right">342</td><td class="text-right">203</td><td class="text-center">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+function switchSideTab(el, panelHint) {
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  const map = {'dashboard-tab':'dashboard', 'input-tab':'input', 'report-tab':'report'};
+  if (map[panelHint]) switchTab(map[panelHint]);
+}
+</script>
+</body>
+</html>

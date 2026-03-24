@@ -1,0 +1,52 @@
+Option Compare Database
+Option Explicit
+Private mY As Integer, mM As Integer
+Private Sub Form_Open(Cancel As Integer): mY = Year(Date): mM = Month(Date): LR: End Sub
+Private Sub btnPrev_Click(): If mM = 1 Then mY = mY - 1: mM = 12 Else mM = mM - 1: End If: LR: End Sub
+Private Sub btnNext_Click(): If mM = 12 Then mY = mY + 1: mM = 1 Else mM = mM + 1: End If: LR: End Sub
+Private Sub btnPDF_Click(): MsgBox "PDF - future", vbInformation: End Sub
+Private Sub LR()
+    lblMonth.Caption = mY & "/" & mM & " Report"
+    Dim dF As String, dT As String
+    dF = Format(DateSerial(mY, mM, 1), "yyyy/mm/dd"): dT = Format(DateSerial(mY, mM + 1, 1), "yyyy/mm/dd")
+    Dim qd As DAO.QueryDef, rs As DAO.Recordset
+    Set qd = CurrentDb.QueryDefs("Q_Team_Monthly_Sum")
+    qd.Parameters("prmDateFrom") = DateSerial(mY, mM, 1): qd.Parameters("prmDateTo") = DateSerial(mY, mM + 1, 1)
+    Set rs = qd.OpenRecordset(dbOpenSnapshot)
+    Dim tC As Long, tV As Long, tP As Long, tR As Long, tH As Double
+    If Not rs.EOF Then tC = Nz(rs("sum_calls"), 0): tV = Nz(rs("sum_valid"), 0): tP = Nz(rs("sum_prospect"), 0): tR = Nz(rs("sum_received"), 0): tH = Nz(rs("sum_hours"), 0)
+    rs.Close
+    Set qd = CurrentDb.QueryDefs("Q_Team_Monthly_Targets")
+    qd.Parameters("prmYear") = mY: qd.Parameters("prmMonth") = mM
+    Set rs = qd.OpenRecordset(dbOpenSnapshot)
+    Dim gC As Long, gV As Long, gP As Long, gR As Long
+    If Not rs.EOF Then gC = Nz(rs("sum_tgt_calls"), 0): gV = Nz(rs("sum_tgt_valid"), 0): gP = Nz(rs("sum_tgt_prospect"), 0): gR = Nz(rs("sum_tgt_received"), 0)
+    rs.Close
+    Dim py As Integer, pm As Integer: py = mY: pm = mM: If pm = 1 Then py = py - 1: pm = 12 Else pm = pm - 1
+    Set qd = CurrentDb.QueryDefs("Q_Team_Monthly_Sum")
+    qd.Parameters("prmDateFrom") = DateSerial(py, pm, 1): qd.Parameters("prmDateTo") = DateSerial(py, pm + 1, 1)
+    Set rs = qd.OpenRecordset(dbOpenSnapshot)
+    Dim pC As Long, pV As Long, pP As Long, pR As Long
+    If Not rs.EOF Then pC = Nz(rs("sum_calls"), 0): pV = Nz(rs("sum_valid"), 0): pP = Nz(rs("sum_prospect"), 0): pR = Nz(rs("sum_received"), 0)
+    rs.Close
+    lblCalls.Caption = Format(tC, "#,##0") & " / " & Format(gC, "#,##0")
+    lblValid.Caption = Format(tV, "#,##0") & " / " & Format(gV, "#,##0")
+    lblProsp.Caption = Format(tP, "#,##0") & " / " & Format(gP, "#,##0")
+    lblRecv.Caption = Format(tR, "#,##0") & " / " & Format(gR, "#,##0")
+    lblCallsPrev.Caption = "prev " & Format(pC, "#,##0") & " " & IIf(tC > pC, Chr(9650) & Format(tC - pC, "#,##0"), IIf(tC < pC, Chr(9660) & Format(pC - tC, "#,##0"), "-"))
+    lblValidPrev.Caption = "prev " & Format(pV, "#,##0") & " " & IIf(tV > pV, Chr(9650) & Format(tV - pV, "#,##0"), IIf(tV < pV, Chr(9660) & Format(pV - tV, "#,##0"), "-"))
+    lblProspPrev.Caption = "prev " & Format(pP, "#,##0") & " " & IIf(tP > pP, Chr(9650) & Format(tP - pP, "#,##0"), IIf(tP < pP, Chr(9660) & Format(pP - tP, "#,##0"), "-"))
+    lblRecvPrev.Caption = "prev " & Format(pR, "#,##0") & " " & IIf(tR > pR, Chr(9650) & Format(tR - pR, "#,##0"), IIf(tR < pR, Chr(9660) & Format(pR - tR, "#,##0"), "-"))
+    lblValidRate.Caption = IIf(tC > 0, Format(tV / tC * 100, "0.0") & "%", "-")
+    lblRecvRate.Caption = IIf(tC > 0, Format(tR / tC * 100, "0.0") & "%", "-")
+    lblHours.Caption = Format(tH, "#,##0") & "h"
+    lblProductivity.Caption = IIf(tH > 0, Format(tP / tH, "0.000"), "-")
+    Dim al As String: al = ""
+    If gR > 0 Then: If tR < gR Then al = al & "Recv: " & (gR - tR) & " left" & vbCrLf Else al = al & "Recv: Goal!" & vbCrLf
+    If gP > 0 Then: If tP < gP Then al = al & "Prosp: " & (gP - tP) & " left" Else al = al & "Prosp: Goal!"
+    lblAlert.Caption = al
+    lstRankRef.RowSource = "SELECT R.member_name, Sum(R.referral) FROM T_RECORDS AS R INNER JOIN T_MEMBERS AS M ON R.member_name=M.member_name WHERE M.active=True AND R.rec_date>=#" & dF & "# AND R.rec_date<#" & dT & "# GROUP BY R.member_name ORDER BY Sum(R.referral) DESC"
+    lstRankRecv.RowSource = "SELECT R.member_name, Sum(R.received) FROM T_RECORDS AS R INNER JOIN T_MEMBERS AS M ON R.member_name=M.member_name WHERE M.active=True AND R.rec_date>=#" & dF & "# AND R.rec_date<#" & dT & "# GROUP BY R.member_name ORDER BY Sum(R.received) DESC"
+    lstRankProsp.RowSource = "SELECT R.member_name, Sum(R.prospect) FROM T_RECORDS AS R INNER JOIN T_MEMBERS AS M ON R.member_name=M.member_name WHERE M.active=True AND R.rec_date>=#" & dF & "# AND R.rec_date<#" & dT & "# GROUP BY R.member_name ORDER BY Sum(R.prospect) DESC"
+    lstRankRef.Requery: lstRankRecv.Requery: lstRankProsp.Requery
+End Sub

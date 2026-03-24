@@ -1,0 +1,27 @@
+Option Compare Database
+Option Explicit
+Private mY As Integer, mM As Integer
+Private Sub Form_Open(Cancel As Integer): mY = Year(Date): mM = Month(Date): LD: End Sub
+Private Sub LD()
+    Me.Caption = mY & "/" & Format(mM, "00") & " Daily"
+    lblMonth.Caption = mY & "/" & mM
+    cboMember.RowSource = "SELECT member_name FROM T_MEMBERS WHERE active=True ORDER BY member_name"
+    Dim s As String
+    s = "SELECT R.ID, Format(R.rec_date,'yyyy/mm/dd'), R.member_name, R.calls, R.valid_count, R.prospect, R.doc, R.follow_up, R.received, R.work_hours, R.[note] FROM T_RECORDS AS R WHERE R.rec_date >= #" & Format(DateSerial(mY, mM, 1), "yyyy/mm/dd") & "# AND R.rec_date < #" & Format(DateSerial(mY, mM + 1, 1), "yyyy/mm/dd") & "# "
+    If Nz(cboMember.Value, "") <> "" Then s = s & "AND R.member_name='" & cboMember.Value & "' "
+    s = s & "ORDER BY R.rec_date DESC, R.member_name"
+    lstRecords.RowSource = s: lstRecords.Requery
+End Sub
+Private Sub btnPrev_Click(): If mM = 1 Then mY = mY - 1: mM = 12 Else mM = mM - 1: End If: LD: End Sub
+Private Sub btnNext_Click(): If mM = 12 Then mY = mY + 1: mM = 1 Else mM = mM + 1: End If: LD: End Sub
+Private Sub cboMember_AfterUpdate(): LD: End Sub
+Private Sub btnAdd_Click(): DoCmd.OpenForm "F_DailyEdit", , , , , acDialog, "ADD|" & mY & "|" & mM: LD: End Sub
+Private Sub btnEdit_Click()
+    If IsNull(lstRecords.Value) Then MsgBox "Select", vbExclamation: Exit Sub
+    DoCmd.OpenForm "F_DailyEdit", , , , , acDialog, "EDIT|" & lstRecords.Value: LD
+End Sub
+Private Sub btnDelete_Click()
+    If IsNull(lstRecords.Value) Then MsgBox "Select", vbExclamation: Exit Sub
+    If MsgBox("Delete?", vbYesNo + vbQuestion) = vbYes Then CurrentDb.Execute "DELETE FROM T_RECORDS WHERE ID=" & lstRecords.Value, dbFailOnError: LD
+End Sub
+Private Sub lstRecords_DblClick(Cancel As Integer): btnEdit_Click: End Sub

@@ -1,0 +1,19 @@
+Option Compare Database
+Option Explicit
+Private mY As Integer, mM As Integer
+Private Sub Form_Open(Cancel As Integer): mY = Year(Date): mM = Month(Date): cboMember.RowSource = "SELECT member_name FROM T_MEMBERS WHERE active=True ORDER BY member_name": LD: End Sub
+Private Sub LD()
+    lblMonth.Caption = mY & "/" & mM: txtRefDate.Value = Format(Date, "yyyy/mm/dd")
+    lstRefs.RowSource = "SELECT R.ID,Format(R.rec_date,'yyyy/mm/dd'),R.member_name,R.ref_count FROM T_REFERRALS AS R WHERE R.rec_date>=#" & Format(DateSerial(mY, mM, 1), "yyyy/mm/dd") & "# AND R.rec_date<#" & Format(DateSerial(mY, mM + 1, 1), "yyyy/mm/dd") & "# ORDER BY R.rec_date DESC,R.member_name"
+    lstRefs.Requery
+End Sub
+Private Sub btnPrev_Click(): If mM = 1 Then mY = mY - 1: mM = 12 Else mM = mM - 1: End If: LD: End Sub
+Private Sub btnNext_Click(): If mM = 12 Then mY = mY + 1: mM = 1 Else mM = mM + 1: End If: LD: End Sub
+Private Sub btnAdd_Click()
+    If Nz(cboMember.Value, "") = "" Or Nz(txtRefDate.Value, "") = "" Then MsgBox "Required", vbExclamation: Exit Sub
+    CurrentDb.Execute "INSERT INTO T_REFERRALS (rec_date,member_name,ref_count) VALUES (#" & Format(CDate(txtRefDate.Value), "yyyy/mm/dd") & "#,'" & cboMember.Value & "'," & Nz(txtRefCount, 0) & ")", dbFailOnError: LD
+End Sub
+Private Sub btnDelete_Click()
+    If IsNull(lstRefs.Value) Then Exit Sub
+    If MsgBox("Delete?", vbYesNo + vbQuestion) = vbYes Then CurrentDb.Execute "DELETE FROM T_REFERRALS WHERE ID=" & lstRefs.Value, dbFailOnError: LD
+End Sub
