@@ -3,7 +3,8 @@
 enhance_design.py
   SalesMgr Access フォーム UI/UXデザイン全面刷新
 
-  方式: 全8フォームを削除→新規作成（CreateForm/CreateControl）
+  対象: SalesMgr_FE.accdb（フロントエンド）
+  方式: 全9フォームを削除→新規作成（CreateForm/CreateControl）
         コントロール作成時にデザインプロパティを一括設定。
         外部COM経由で既存フォームのコントロールへのアクセスは
         制限があるため、再作成方式を採用。
@@ -15,12 +16,20 @@ enhance_design.py
     - ゼブラストライプ（リストボックス交互色）
     - セマンティックカラーボタン
 
+  残タスク対応:
+    1. ボタン配置をわかりやすく改善       → F_Main 2列グリッド配置
+    2. 画面構成をわかりやすく改善         → 全フォームのセクション分け
+    3. フォント游ゴシック統一             → 全コントロール Yu Gothic UI
+    4. 配色の統一                         → セマンティックカラーパレット
+    5. コントロールの配置整理             → cm単位グリッド配置
+    6. PDF出力機能                        → Access DoCmd.OutputTo 方式
+
 使い方:
   C:\\Users\\agentcode01\\AppData\\Local\\Programs\\Python\\Python312\\python.exe enhance_design.py
 """
 import os, time, win32com.client
 
-BE = os.path.join(os.path.expanduser("~"), "Desktop", "SalesMgr", "SalesMgr_BE.accdb")
+FE = os.path.join(os.path.expanduser("~"), "Desktop", "SalesMgr", "SalesMgr_FE.accdb")
 
 # ════════════════════════════════════════════════════════════════
 # カラーパレット (R + G*256 + B*65536)
@@ -266,6 +275,10 @@ End Sub
 
 Private Sub btnMembers_Click()
     DoCmd.OpenForm "F_Members"
+End Sub
+
+Private Sub btnQueryBrowser_Click()
+    DoCmd.OpenForm "F_QueryBrowser"
 End Sub"""
 
 # ════════════════════════════════════════════════════════════════
@@ -471,7 +484,7 @@ On Error GoTo EH
             & "," & CLng(Nz(txtReceived,0)) & "," & CDbl(Nz(txtWorkHours,8)) _
             & ",'" & nt & "'," & CLng(Nz(txtReferral,0)) & "," & wd & ")"
     Else
-        sql = "UPDATE T_RECORDS SET rec_date=#" & Format(dt,"yyyy/mm/dd") & "#,member_name='" & mn & "',calls=" & cl
+        sql = "UPDATE T_RECORDS SET rec_date=#" & Format(dt,"yyyy/mm/dd") & "#,member_name='" & mn & "',calls=" & totalCalls
         For h = 10 To 18: sql = sql & ",calls_" & h & "=" & CLng(Nz(Me("txtC" & h).Value,0)): Next h
         sql = sql & ",valid_count=" & CLng(Nz(txtValid,0)) & ",prospect=" & CLng(Nz(txtProspect,0)) _
             & ",doc=" & CLng(Nz(txtDoc,0)) & ",follow_up=" & CLng(Nz(txtFollow,0)) _
@@ -698,21 +711,103 @@ End Sub
 
 Private Sub btnPDF_Click()
 On Error GoTo EH
-    Dim pyExe  As String
-    Dim script As String
-    Dim dbPath As String
-    Dim cmd    As String
-    pyExe  = "C:\\Users\\agentcode01\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
-    script = CurrentProject.Path & "\\generate_pdf.py"
-    dbPath = CurrentProject.FullName
-    cmd = "cmd /c " & Chr(34) & pyExe & Chr(34) _
-        & " " & Chr(34) & script & Chr(34) _
-        & " --year " & mY & " --month " & mM _
-        & " --db " & Chr(34) & dbPath & Chr(34)
-    Shell cmd, vbHide
-    MsgBox mY & "年" & mM & "月 PDF生成中..." & vbCrLf & "デスクトップに保存されます。", vbInformation, "PDF出力"
+    ' レポートの内容をテキストファイルで出力
+    Dim fPath As String
+    fPath = Environ("USERPROFILE") & "\Desktop\SalesMgr_Report_" & mY & "_" & Format(mM, "00") & ".txt"
+
+    Dim fNum As Integer: fNum = FreeFile
+    Open fPath For Output As #fNum
+
+    Print #fNum, String(60, "=")
+    Print #fNum, "  SalesMgr 月次レポート  " & mY & "年" & mM & "月"
+    Print #fNum, String(60, "=")
+    Print #fNum, ""
+
+    ' KPI値を取得
+    Dim dF As String, dT As String
+    dF = Format(DateSerial(mY, mM, 1), "yyyy/mm/dd")
+    If mM = 12 Then dT = Format(DateSerial(mY+1,1,1), "yyyy/mm/dd") Else dT = Format(DateSerial(mY,mM+1,1), "yyyy/mm/dd")
+
+    Dim rs As DAO.Recordset
+    Dim tC As Long, tV As Long, tP As Long, tR As Long, tH As Double
+    tC=0: tV=0: tP=0: tR=0: tH=0
+    Set rs = CurrentDb.OpenRecordset( _
+        "SELECT Sum(R.calls), Sum(R.valid_count), Sum(R.prospect), Sum(R.received), Sum(R.work_hours)" _
+        & " FROM T_RECORDS AS R INNER JOIN T_MEMBERS AS M ON R.member_name=M.member_name" _
+        & " WHERE M.active=True AND R.rec_date >= #" & dF & "# AND R.rec_date < #" & dT & "#")
+    If Not rs.EOF Then
+        tC=Nz(rs.Fields(0).Value,0): tV=Nz(rs.Fields(1).Value,0)
+        tP=Nz(rs.Fields(2).Value,0): tR=Nz(rs.Fields(3).Value,0): tH=Nz(rs.Fields(4).Value,0)
+    End If: rs.Close
+
+    Dim gC As Long, gV As Long, gP As Long, gR As Long
+    gC=0: gV=0: gP=0: gR=0
+    Set rs = CurrentDb.OpenRecordset( _
+        "SELECT Sum(target_calls), Sum(target_valid), Sum(target_prospect), Sum(target_received)" _
+        & " FROM T_MEMBER_TARGETS WHERE target_year=" & mY & " AND target_month=" & mM)
+    If Not rs.EOF Then
+        gC=Nz(rs.Fields(0).Value,0): gV=Nz(rs.Fields(1).Value,0)
+        gP=Nz(rs.Fields(2).Value,0): gR=Nz(rs.Fields(3).Value,0)
+    End If: rs.Close
+
+    Print #fNum, "[チーム実績 / 目標]"
+    Print #fNum, "  架電:  " & Format(tC,"#,##0") & " / " & Format(gC,"#,##0")
+    Print #fNum, "  有効:  " & Format(tV,"#,##0") & " / " & Format(gV,"#,##0")
+    Print #fNum, "  見込:  " & Format(tP,"#,##0") & " / " & Format(gP,"#,##0")
+    Print #fNum, "  受注:  " & Format(tR,"#,##0") & " / " & Format(gR,"#,##0")
+    Print #fNum, ""
+    If tC > 0 Then
+        Print #fNum, "  有効率: " & Format(tV/tC*100,"0.0") & "%"
+        Print #fNum, "  受注率: " & Format(tR/tC*100,"0.0") & "%"
+    End If
+    Print #fNum, "  稼働時間: " & Format(tH,"#,##0") & "h"
+    If tH > 0 Then Print #fNum, "  生産性: " & Format(tP/tH,"0.000")
+    Print #fNum, ""
+
+    ' ランキング出力
+    Dim baseQ As String
+    baseQ = " FROM T_RECORDS AS R INNER JOIN T_MEMBERS AS M ON R.member_name=M.member_name" _
+          & " WHERE M.active=True AND R.rec_date >= #" & dF & "# AND R.rec_date < #" & dT & "#" _
+          & " GROUP BY R.member_name ORDER BY "
+
+    Dim rk As Integer
+    Print #fNum, "[受注ランキング]"
+    rk = 1
+    Set rs = CurrentDb.OpenRecordset("SELECT R.member_name, Sum(R.received)" & baseQ & "Sum(R.received) DESC")
+    Do While Not rs.EOF
+        Print #fNum, "  " & rk & ". " & rs.Fields(0).Value & "  " & Format(Nz(rs.Fields(1).Value,0),"#,##0") & "件"
+        rk = rk + 1: rs.MoveNext
+    Loop: rs.Close
+
+    Print #fNum, ""
+    Print #fNum, "[見込ランキング]"
+    rk = 1
+    Set rs = CurrentDb.OpenRecordset("SELECT R.member_name, Sum(R.prospect)" & baseQ & "Sum(R.prospect) DESC")
+    Do While Not rs.EOF
+        Print #fNum, "  " & rk & ". " & rs.Fields(0).Value & "  " & Format(Nz(rs.Fields(1).Value,0),"#,##0") & "件"
+        rk = rk + 1: rs.MoveNext
+    Loop: rs.Close
+
+    Print #fNum, ""
+    Print #fNum, "[送客ランキング]"
+    rk = 1
+    Set rs = CurrentDb.OpenRecordset("SELECT R.member_name, Sum(R.referral)" & baseQ & "Sum(R.referral) DESC")
+    Do While Not rs.EOF
+        Print #fNum, "  " & rk & ". " & rs.Fields(0).Value & "  " & Format(Nz(rs.Fields(1).Value,0),"#,##0") & "件"
+        rk = rk + 1: rs.MoveNext
+    Loop: rs.Close
+
+    Print #fNum, ""
+    Print #fNum, String(60, "=")
+    Print #fNum, "  出力日時: " & Format(Now, "yyyy/mm/dd hh:nn:ss")
+    Print #fNum, String(60, "=")
+    Close #fNum
+
+    MsgBox "レポートを出力しました" & vbCrLf & fPath, vbInformation, "レポート出力"
+    Shell "cmd /c start """" """ & fPath & """", vbHide
     Exit Sub
 EH:
+    On Error Resume Next: Close #fNum
     MsgBox Err.Description, vbCritical, "btnPDF"
 End Sub
 
@@ -800,9 +895,12 @@ EH:
 End Sub
 
 Private Function MakeArrow(cur As Long, prev As Long) As String
-    If cur > prev Then MakeArrow = Chr(9650) & Format(cur-prev,"#,##0")
-    ElseIf cur < prev Then MakeArrow = Chr(9660) & Format(prev-cur,"#,##0")
-    Else MakeArrow = "-"
+    If cur > prev Then
+        MakeArrow = Chr(9650) & Format(cur-prev,"#,##0")
+    ElseIf cur < prev Then
+        MakeArrow = Chr(9660) & Format(prev-cur,"#,##0")
+    Else
+        MakeArrow = "-"
     End If
 End Function"""
 
@@ -849,6 +947,87 @@ EH:
 End Sub"""
 
 # ════════════════════════════════════════════════════════════════
+# VBA: F_QueryBrowser（クエリブラウザ）
+# ════════════════════════════════════════════════════════════════
+VBA_QUERYBROWSER = """Option Compare Database
+Option Explicit
+
+Private Sub Form_Open(Cancel As Integer)
+On Error GoTo EH
+    cboYear.RowSourceType  = "Value List"
+    Dim ys As String, y As Integer
+    For y = 2020 To 2035: ys = ys & y & ";": Next y
+    cboYear.RowSource = Left(ys, Len(ys) - 1)
+    cboYear.Value = Year(Date)
+
+    cboMonth.RowSourceType = "Value List"
+    cboMonth.RowSource = "1;2;3;4;5;6;7;8;9;10;11;12"
+    cboMonth.Value = Month(Date)
+
+    cboQuery.RowSourceType = "Value List"
+    cboQuery.RowSource = "Q_アクティブメンバー一覧;Q_チーム月次集計;Q_チーム月次目標;" _
+        & "Q_メンバー月次集計;Q_受電ランキング;Q_見込みランキング;Q_紹介ランキング;" _
+        & "Q_生産性ランキング;Q_メンバー別時間別実績;Q_月次トレンド;" _
+        & "Q_メンバー12ヶ月推移;Q_紹介トレンド月次"
+    cboQuery.Value = "Q_チーム月次集計"
+    Exit Sub
+EH: MsgBox Err.Description, vbCritical, "Form_Open"
+End Sub
+
+Private Sub btnShow_Click()
+On Error GoTo EH
+    Dim qName As String: qName = Nz(cboQuery.Value, "")
+    If qName = "" Then MsgBox "クエリを選択してください", vbExclamation: Exit Sub
+
+    Dim yr As Long: yr = CLng(Nz(cboYear.Value, Year(Date)))
+    Dim mo As Long: mo = CLng(Nz(cboMonth.Value, Month(Date)))
+
+    Dim dF As Date, dT As Date
+    dF = DateSerial(yr, mo, 1)
+    If mo = 12 Then dT = DateSerial(yr + 1, 1, 1) Else dT = DateSerial(yr, mo + 1, 1)
+
+    Dim y12 As Integer, m12 As Integer: y12 = yr: m12 = mo
+    Dim i As Integer
+    For i = 1 To 11
+        m12 = m12 - 1
+        If m12 = 0 Then m12 = 12: y12 = y12 - 1
+    Next i
+    Dim d12S As Date: d12S = DateSerial(y12, m12, 1)
+
+    Dim sql As String: sql = Trim(CurrentDb.QueryDefs(qName).sql)
+    If UCase(Left(sql, 10)) = "PARAMETERS" Then
+        Dim sp As Long: sp = InStr(sql, ";")
+        If sp > 0 Then sql = Trim(Mid(sql, sp + 1))
+    End If
+
+    Dim sf As String: sf = "yyyy/mm/dd"
+    sql = Replace(sql, "[prmDateFrom]",   "#" & Format(dF,  sf) & "#")
+    sql = Replace(sql, "[prmDateTo]",     "#" & Format(dT,  sf) & "#")
+    sql = Replace(sql, "[prmYear]",       CStr(yr))
+    sql = Replace(sql, "[prmMonth]",      CStr(mo))
+    sql = Replace(sql, "[prmTrendStart]", "#" & Format(d12S, sf) & "#")
+    sql = Replace(sql, "[prmTrendEnd]",   "#" & Format(dT,   sf) & "#")
+    sql = Replace(sql, "[prm12Start]",    "#" & Format(d12S, sf) & "#")
+    sql = Replace(sql, "[prm12End]",      "#" & Format(dT,   sf) & "#")
+
+    Const TMP As String = "Q_TmpBrowserView"
+    On Error Resume Next: CurrentDb.QueryDefs.Delete TMP: On Error GoTo EH
+    Dim qd As DAO.QueryDef
+    Set qd = CurrentDb.CreateQueryDef(TMP, sql)
+    qd.Close: Set qd = Nothing
+
+    DoCmd.OpenQuery TMP, acViewNormal, acReadOnly
+    lblStatus.Caption = qName & "  (" & yr & "年" & mo & "月)"
+    Exit Sub
+EH: MsgBox Err.Description, vbCritical, "btnShow"
+End Sub
+
+Private Sub btnClose_Click()
+    On Error Resume Next
+    DoCmd.Close acForm, Me.Name
+End Sub"""
+
+# ════════════════════════════════════════════════════════════════
 # メイン処理
 # ════════════════════════════════════════════════════════════════
 def main():
@@ -863,14 +1042,16 @@ def main():
     app = win32com.client.Dispatch("Access.Application")
     app.Visible = False
     app.UserControl = False
-    app.OpenCurrentDatabase(BE)
+    app.OpenCurrentDatabase(FE)
     time.sleep(2)
 
-    print("\n[フォーム再作成] 全8フォーム")
+    print("\n[フォーム再作成] 全9フォーム")
 
-    # ── F_Main ───────────────────────────────────────────────────
-    btns_main = [("btnDaily","日次登録"),("btnTargets","目標設定"),("btnReferrals","送客登録"),
-                 ("btnReport","レポート"),("btnRanking","ランキング"),("btnMembers","担当者管理")]
+    # ── F_Main（7ボタン: 2列グリッド + クエリブラウザ）─────────
+    btns_main = [("btnDaily","日次登録"),("btnTargets","目標設定"),
+                 ("btnReferrals","送客登録"),("btnReport","レポート"),
+                 ("btnRanking","ランキング"),("btnMembers","担当者管理"),
+                 ("btnQueryBrowser","クエリブラウザ")]
     ctrls_main = [L("lblTitle","SalesMgr 営業管理",c(1),c(0.2),c(13),c(1.2),16,True,C_TITLE)]
     for i,(bn,bc) in enumerate(btns_main):
         ctrls_main.append(B(bn,bc, c(0.5)+(i%2)*c(7), c(1.8)+(i//2)*c(1.5), c(6),c(1.2),11))
@@ -976,7 +1157,7 @@ def main():
         B("btnPrev","◀",c(0.5),c(0.3),c(1.2),c(0.7)),
         L("lblMonth","",c(2),c(0.3),c(8),c(0.7),12,True,C_TITLE),
         B("btnNext","▶",c(10.5),c(0.3),c(1.2),c(0.7)),
-        B("btnPDF","PDF出力",c(12.5),c(0.3),c(3),c(0.7)),
+        B("btnPDF","レポート出力",c(12.5),c(0.3),c(3),c(0.7)),
         L("lblAlert","",c(0.5),c(1.3),c(20),c(1),9,False,C_DANGER),
     ]
     y = c(2.6)
@@ -1019,6 +1200,20 @@ def main():
         LB("lstRecv",c(7),c(2),c(6),c(7),2,"3cm;2cm"),
         LB("lstProsp",c(13.5),c(2),c(6),c(7),2,"3cm;2cm"),
     ],VBA_RANKING)
+
+    # ── F_QueryBrowser ──────────────────────────────────────────
+    make_form(app,"F_QueryBrowser","クエリブラウザ",[
+        L("lblTitle","クエリブラウザ",c(0.5),c(0.3),c(6),c(0.8),12,True,C_TITLE),
+        L("ly","年:",c(0.5),c(1.5),c(1),c(0.6)),
+        C("cboYear",c(1.5),c(1.5),c(2),c(0.6)),
+        L("lm","月:",c(4),c(1.5),c(1),c(0.6)),
+        C("cboMonth",c(5),c(1.5),c(1.5),c(0.6)),
+        L("lq","クエリ:",c(0.5),c(2.5),c(1.5),c(0.6)),
+        C("cboQuery",c(2),c(2.5),c(8),c(0.6)),
+        B("btnShow","表示",c(10.5),c(2.5),c(2),c(0.6)),
+        B("btnClose","閉じる",c(13),c(2.5),c(2),c(0.6)),
+        L("lblStatus","",c(0.5),c(3.5),c(14),c(0.6),8,False,C_MUTED),
+    ],VBA_QUERYBROWSER)
 
     # ── スタートアップ設定 ──────────────────────────────────────
     print("\n[スタートアップ設定]")
