@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Chronicles of Lexis - クロニクル・オブ・レクシス</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Title Screen -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg">
+      <h1 class="game-title">Chronicles<br>of Lexis</h1>
+      <p class="game-subtitle">クロニクル・オブ・レクシス</p>
+      <button class="btn btn-primary btn-lg pulse" onclick="Game.startNewGame()">冒険を始める</button>
+    </div>
+  </div>
+
+  <!-- Party Select Screen -->
+  <div id="screen-party-select" class="screen">
+    <div class="screen-header">
+      <h2>パーティ編成</h2>
+      <p class="hint">3名を選択してください</p>
+    </div>
+    <div id="class-list" class="class-grid"></div>
+    <div class="bottom-bar">
+      <span id="party-count">0 / 3 選択中</span>
+      <button class="btn btn-primary" id="btn-start-adventure" disabled onclick="Game.confirmParty()">出発</button>
+    </div>
+  </div>
+
+  <!-- Map Screen -->
+  <div id="screen-map" class="screen">
+    <div class="screen-header">
+      <div class="stage-info">
+        <span id="current-stage">Stage 1 / 30</span>
+        <span id="current-gold" class="gold-display">💰 0G</span>
+      </div>
+      <div id="layer-name" class="layer-name">第1層：草原と森</div>
+    </div>
+    <div id="party-status-bar" class="party-status-bar"></div>
+    <div id="route-choices" class="route-choices"></div>
+  </div>
+
+  <!-- Battle Screen -->
+  <div id="screen-battle" class="screen">
+    <div class="battle-header">
+      <span id="battle-stage">Stage 1</span>
+      <span id="battle-type-label" class="battle-type">通常戦闘</span>
+    </div>
+    <div id="enemy-area" class="battle-area enemy-area"></div>
+    <div class="battle-divider"></div>
+    <div id="ally-area" class="battle-area ally-area"></div>
+    <div id="battle-log" class="battle-log"></div>
+    <div id="battle-controls" class="battle-controls">
+      <button class="btn btn-sm" onclick="Battle.setSpeed(1)" id="btn-speed1">1x</button>
+      <button class="btn btn-sm active" onclick="Battle.setSpeed(2)" id="btn-speed2">2x</button>
+      <button class="btn btn-sm" onclick="Battle.setSpeed(0)" id="btn-speed-auto">Auto</button>
+    </div>
+  </div>
+
+  <!-- Battle Result Screen -->
+  <div id="screen-battle-result" class="screen">
+    <div class="result-content">
+      <h2 id="result-title">勝利！</h2>
+      <div id="result-rewards"></div>
+      <div id="result-levelups"></div>
+      <div id="relic-choice" class="relic-choice hidden"></div>
+      <button class="btn btn-primary" id="btn-result-continue" onclick="Game.continueAfterBattle()">次へ</button>
+    </div>
+  </div>
+
+  <!-- Shop Screen -->
+  <div id="screen-shop" class="screen">
+    <div class="screen-header">
+      <h2>🏪 ショップ</h2>
+      <span id="shop-gold" class="gold-display">💰 0G</span>
+    </div>
+    <div id="shop-items" class="shop-items"></div>
+    <button class="btn btn-secondary" onclick="Game.leaveShop()">店を出る</button>
+  </div>
+
+  <!-- Treasure Screen -->
+  <div id="screen-treasure" class="screen">
+    <div class="result-content">
+      <h2>🎁 宝箱発見！</h2>
+      <div id="treasure-content"></div>
+      <button class="btn btn-primary" onclick="Game.continueTreasure()">次へ</button>
+    </div>
+  </div>
+
+  <!-- Event Screen -->
+  <div id="screen-event" class="screen">
+    <div class="result-content">
+      <h2 id="event-title">イベント</h2>
+      <p id="event-desc"></p>
+      <div id="event-choices"></div>
+    </div>
+  </div>
+
+  <!-- Inventory Screen (overlay) -->
+  <div id="screen-inventory" class="screen overlay">
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2>パーティ情報</h2>
+        <button class="btn-close" onclick="UI.closeInventory()">✕</button>
+      </div>
+      <div id="inventory-tabs" class="tabs">
+        <button class="tab active" onclick="UI.showInventoryTab('party')">パーティ</button>
+        <button class="tab" onclick="UI.showInventoryTab('relics')">レリック</button>
+      </div>
+      <div id="inventory-content"></div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="screen-gameover" class="screen">
+    <div class="result-content">
+      <h2 class="gameover-title">Game Over</h2>
+      <p id="gameover-stage">Stage 1 で力尽きた...</p>
+      <button class="btn btn-primary" onclick="Game.returnToTitle()">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- Game Clear Screen -->
+  <div id="screen-clear" class="screen">
+    <div class="result-content clear-content">
+      <h2 class="clear-title">🏆 Game Clear!</h2>
+      <p>魔王を倒し、世界に平和が訪れた！</p>
+      <div id="clear-stats"></div>
+      <button class="btn btn-primary" onclick="Game.returnToTitle()">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- Floating party button -->
+  <button id="btn-party-info" class="fab hidden" onclick="UI.openInventory()">📋</button>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="battle.js"></script>
+<script src="ui.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
