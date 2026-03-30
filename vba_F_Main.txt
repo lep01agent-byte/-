@@ -1,8 +1,0 @@
-Option Compare Database
-Option Explicit
-Private Sub btnDaily_Click(): DoCmd.OpenForm "F_Daily": End Sub
-Private Sub btnTargets_Click(): DoCmd.OpenForm "F_Targets": End Sub
-Private Sub btnReferrals_Click(): DoCmd.OpenForm "F_Referrals": End Sub
-Private Sub btnReport_Click(): DoCmd.OpenForm "F_Report": End Sub
-Private Sub btnRanking_Click(): DoCmd.OpenForm "F_Ranking": End Sub
-Private Sub btnMembers_Click(): DoCmd.OpenForm "F_Members": End Sub
